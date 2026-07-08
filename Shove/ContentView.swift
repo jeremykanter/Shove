@@ -5,49 +5,57 @@
 //  Created by Jeremy Kanter on 7/8/26.
 //
 
+import Combine
 import SwiftUI
-import SwiftData
+import KeyboardShortcuts
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @State private var isTrusted = AccessibilityPermission.isGranted
+    private let trustCheck = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-            .toolbar {
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+        VStack(alignment: .leading, spacing: 16) {
+            permissionStatus
+            Divider()
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(shortcutRows, id: \.name.rawValue) { row in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(KeyboardShortcuts.getShortcut(for: row.name)?.description ?? "—")
+                            .font(.system(.body, design: .monospaced))
+                            .frame(width: 90, alignment: .leading)
+                        Text(row.label)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
-        } detail: {
-            Text("Select an item")
+        }
+        .padding(24)
+        .frame(width: 440)
+        .onReceive(trustCheck) { _ in
+            isTrusted = AccessibilityPermission.isGranted
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
+    private var shortcutRows: [(name: KeyboardShortcuts.Name, label: String)] {
+        Direction.allCases.map { ($0.shortcutName, $0.label) }
+            + Corner.allCases.map { ($0.shortcutName, $0.label) }
     }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+    @ViewBuilder
+    private var permissionStatus: some View {
+        if isTrusted {
+            Label("Accessibility access granted", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Accessibility access required", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Shove needs Accessibility access to move and resize windows of other apps.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Button("Open System Settings…") {
+                    AccessibilityPermission.openSystemSettings()
+                }
             }
         }
     }
@@ -55,5 +63,4 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }
