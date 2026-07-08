@@ -111,6 +111,14 @@ enum ShortcutHandler {
         window.move(to: LayoutEngine.frame(corner: corner, current: current, screen: screen.visibleFrame))
     }
 
+    /// Set when the last shove asked for a size the window refused (clamped
+    /// at its minimum). A clamped window sits on no cycle step, so stateless
+    /// matching alone would restart the cycle; this remembers where in the
+    /// cycle the window was so the next press continues past the unreachable
+    /// steps to full screen. Invalidated by anything that changes the window
+    /// or its frame.
+    private static var pendingClamp: (window: FocusedWindow, direction: Direction, step: Int, frame: CGRect, minSize: CGSize)?
+
     static func shove(_ direction: Direction) {
         guard AccessibilityPermission.isGranted,
               let window = FocusedWindow.current(),
@@ -120,36 +128,45 @@ enum ShortcutHandler {
             return
         }
         let visible = screen.visibleFrame
-        var target = LayoutEngine.nextFrame(direction: direction, current: current, screen: visible)
-        window.apply(target)
-        guard var achieved = window.frame else { return }
 
-        // The AX API doesn't expose a window's minimum size, so probe: if the
-        // window came back larger than requested, it clamped. Redo the cycle
-        // treating the clamped size as the minimum, skipping steps it can't
-        // reach.
-        let tolerance = LayoutEngine.tolerance
-        if achieved.width > target.width + tolerance || achieved.height > target.height + tolerance {
-            let retry = LayoutEngine.nextFrame(
+        let step: Int
+        let target: CGRect
+        if let clamp = pendingClamp,
+           clamp.direction == direction,
+           window.isSame(as: clamp.window),
+           LayoutEngine.roughlyEqual(current, clamp.frame) {
+            (step, target) = LayoutEngine.frame(
+                afterClampedStep: clamp.step,
                 direction: direction,
                 current: current,
                 screen: visible,
-                minSize: achieved.size
+                minSize: clamp.minSize
             )
-            if retry != target {
-                target = retry
-                window.apply(target)
-                achieved = window.frame ?? achieved
-            }
+        } else {
+            (step, target) = LayoutEngine.nextFrame(direction: direction, current: current, screen: visible)
         }
+        pendingClamp = nil
 
-        // If the size still isn't what was asked for, the position was
-        // computed for the wrong size — re-pin the window's anchored edge.
-        if abs(achieved.width - target.width) > tolerance || abs(achieved.height - target.height) > tolerance {
-            let pinned = pin(achieved, direction: direction, screen: visible)
-            if pinned.origin != achieved.origin {
-                window.move(to: pinned)
-            }
+        window.apply(target)
+        guard let achieved = window.frame else { return }
+
+        // A window with size constraints settles at whatever size it accepts
+        // (e.g. its minimum); the position was computed for the requested
+        // size, so re-pin the anchored edge to match reality.
+        let tolerance = LayoutEngine.tolerance
+        guard abs(achieved.width - target.width) > tolerance || abs(achieved.height - target.height) > tolerance else {
+            return
+        }
+        var settled = achieved
+        let pinned = pin(achieved, direction: direction, screen: visible)
+        if pinned.origin != achieved.origin {
+            window.move(to: pinned)
+            settled = window.frame ?? pinned
+        }
+        // Only a window that came back *larger* than asked is min-clamped;
+        // remember it so the next press can continue the cycle.
+        if achieved.width > target.width + tolerance || achieved.height > target.height + tolerance {
+            pendingClamp = (window, direction, step, settled, achieved.size)
         }
     }
 

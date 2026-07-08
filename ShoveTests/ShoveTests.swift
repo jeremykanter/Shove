@@ -17,8 +17,8 @@ struct LayoutEngineTests {
     /// An arbitrary frame that matches no cycle step.
     let floating = CGRect(x: 123, y: 77, width: 500, height: 300)
 
-    private func press(_ direction: Direction, on frame: CGRect, screen: CGRect? = nil, minSize: CGSize = .zero) -> CGRect {
-        LayoutEngine.nextFrame(direction: direction, current: frame, screen: screen ?? self.screen, minSize: minSize)
+    private func press(_ direction: Direction, on frame: CGRect, screen: CGRect? = nil) -> CGRect {
+        LayoutEngine.nextFrame(direction: direction, current: frame, screen: screen ?? self.screen).frame
     }
 
     @Test func leftFirstPressIsLeftHalf() {
@@ -90,24 +90,50 @@ struct LayoutEngineTests {
         #expect(press(.left, on: notAStep).width == 600)
     }
 
-    @Test func minimumSizeSkipsUnreachableSteps() {
-        let minSize = CGSize(width: 450, height: 0)
-        // 5/12 (500) is still reachable from the left half…
-        let fiveTwelfths = press(.left, on: CGRect(x: 0, y: 0, width: 600, height: 900), minSize: minSize)
-        #expect(fiveTwelfths.width == 500)
-        // …but from there, 1/3 through 1/12 are all under the minimum, so the
-        // cycle jumps straight to full width.
-        #expect(press(.left, on: fiveTwelfths, minSize: minSize).width == 1200)
-        // Same for Down with a minimum height: 1/2 → skip 1/4 → full.
-        let bottomHalf = CGRect(x: 123, y: 0, width: 500, height: 450)
-        let tall = CGSize(width: 0, height: 400)
-        #expect(press(.down, on: bottomHalf, minSize: tall).height == 900)
+    @Test func windowOnNoStepRestartsCycle() {
+        // Without a clamp memo (e.g. after a manual move), a window on no
+        // step restarts at step 0.
+        let atMinimum = CGRect(x: 0, y: 0, width: 450, height: 900)
+        #expect(press(.left, on: atMinimum).width == 600)
     }
 
-    @Test func minimumBeyondLargestStepFallsBackToLargest() {
-        let huge = CGSize(width: 1300, height: 0)
-        #expect(press(.up, on: floating, minSize: huge).width == 1200)
-        #expect(press(.right, on: floating, minSize: huge) == CGRect(x: 0, y: 0, width: 1200, height: 900))
+    @Test func clampedContinuationSkipsToFullScreen() {
+        // Indigo scenario: 1/3 (step 2) clamped at a 450 pt minimum. The next
+        // press skips 1/4, 1/6, and 1/12 and lands on full screen.
+        let atMinimum = CGRect(x: 0, y: 0, width: 450, height: 900)
+        let (step, frame) = LayoutEngine.frame(
+            afterClampedStep: 2,
+            direction: .left,
+            current: atMinimum,
+            screen: screen,
+            minSize: CGSize(width: 450, height: 900)
+        )
+        #expect(step == 6)
+        #expect(frame == screen)
+
+        // Down: 1/4 height (step 1) clamped at 400 pt continues to full height.
+        let bottomClamped = CGRect(x: 123, y: 0, width: 500, height: 400)
+        let (downStep, downFrame) = LayoutEngine.frame(
+            afterClampedStep: 1,
+            direction: .down,
+            current: bottomClamped,
+            screen: screen,
+            minSize: CGSize(width: 500, height: 400)
+        )
+        #expect(downStep == 2)
+        #expect(downFrame == CGRect(x: 123, y: 0, width: 500, height: 900))
+    }
+
+    @Test func clampedContinuationWithHugeMinimumFallsBackToLargest() {
+        let (step, frame) = LayoutEngine.frame(
+            afterClampedStep: 0,
+            direction: .left,
+            current: CGRect(x: 0, y: 0, width: 1200, height: 900),
+            screen: screen,
+            minSize: CGSize(width: 1300, height: 900)
+        )
+        #expect(step == 6)
+        #expect(frame == screen)
     }
 
     @Test func cornerMovesKeepSizeAndPinTopCorners() {

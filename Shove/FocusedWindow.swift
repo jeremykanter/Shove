@@ -39,6 +39,10 @@ struct FocusedWindow {
         return FocusedWindow(element: focused as! AXUIElement, appElement: appElement)
     }
 
+    func isSame(as other: FocusedWindow) -> Bool {
+        CFEqual(element, other.element)
+    }
+
     var frame: CGRect? {
         guard let position = pointValue(for: kAXPositionAttribute),
               let size = sizeValue(for: kAXSizeAttribute) else {

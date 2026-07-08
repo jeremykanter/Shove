@@ -35,28 +35,41 @@ enum LayoutEngine {
     /// count as "on" a step.
     static let tolerance: CGFloat = 16
 
-    /// The frame the window should get on the next press: if its current
-    /// frame sits on step `i` of the direction's cycle, the frame for step
-    /// `i + 1` (wrapping); otherwise the frame for step 0. Steps the window
-    /// cannot shrink to (its minimum size, if known, exceeds them on the
-    /// cycling axis) are skipped.
-    static func nextFrame(direction: Direction, current: CGRect, screen: CGRect, minSize: CGSize = .zero) -> CGRect {
+    /// The step the window should get on the next press: if its current
+    /// frame sits on step `i` of the direction's cycle, step `i + 1`
+    /// (wrapping); otherwise step 0.
+    static func nextFrame(direction: Direction, current: CGRect, screen: CGRect) -> (step: Int, frame: CGRect) {
         let stepCount = direction.fractions.count
         let matched = (0..<stepCount).first { step in
             matches(current, frame(step: step, direction: direction, screen: screen, current: current), direction: direction)
         }
-        let start = matched.map { $0 + 1 } ?? 0
-        for offset in 0..<stepCount {
-            let step = (start + offset) % stepCount
-            let candidate = frame(step: step, direction: direction, screen: screen, current: current)
+        let next = matched.map { ($0 + 1) % stepCount } ?? 0
+        return (next, frame(step: next, direction: direction, screen: screen, current: current))
+    }
+
+    /// Continues the cycle for a window that clamped at its minimum size on
+    /// `step`: returns the first following step the window can actually
+    /// reach, skipping the ones below its minimum — so a clamped window
+    /// proceeds to the wrap (full screen) instead of restarting the cycle.
+    static func frame(afterClampedStep step: Int, direction: Direction, current: CGRect, screen: CGRect, minSize: CGSize) -> (step: Int, frame: CGRect) {
+        let stepCount = direction.fractions.count
+        for offset in 1...stepCount {
+            let next = (step + offset) % stepCount
+            let candidate = frame(step: next, direction: direction, screen: screen, current: current)
             if fits(candidate, minSize: minSize, direction: direction) {
-                return candidate
+                return (next, candidate)
             }
         }
-        // The window's minimum exceeds even the largest step; give it the
-        // largest one and let the caller re-pin the clamped result.
+        // The minimum exceeds even the largest step; hand back the largest.
         let largest = direction.fractions.firstIndex(of: direction.fractions.max()!)!
-        return frame(step: largest, direction: direction, screen: screen, current: current)
+        return (largest, frame(step: largest, direction: direction, screen: screen, current: current))
+    }
+
+    static func roughlyEqual(_ a: CGRect, _ b: CGRect) -> Bool {
+        abs(a.minX - b.minX) <= tolerance
+            && abs(a.minY - b.minY) <= tolerance
+            && abs(a.width - b.width) <= tolerance
+            && abs(a.height - b.height) <= tolerance
     }
 
     private static func fits(_ candidate: CGRect, minSize: CGSize, direction: Direction) -> Bool {
