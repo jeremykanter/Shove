@@ -56,12 +56,29 @@ enum ShortcutHandler {
     #if DEBUG
     /// Lets a test harness trigger presses without synthesizing keyboard
     /// events: `ShoveDebugPress` with object "left"/"right"/"up"/"down".
-    /// Frames are appended to /tmp/shove-debug.log.
+    /// "windows" instead lists the app's visible windows. Results are
+    /// appended to /tmp/shove-debug.log.
     static func registerDebugHook() {
         DistributedNotificationCenter.default().addObserver(
             forName: Notification.Name("ShoveDebugPress"), object: nil, queue: .main
         ) { note in
             MainActor.assumeIsolated {
+                func log(_ line: String) {
+                    if let data = line.data(using: .utf8),
+                       let handle = FileHandle(forWritingAtPath: "/tmp/shove-debug.log") ?? {
+                           FileManager.default.createFile(atPath: "/tmp/shove-debug.log", contents: nil)
+                           return FileHandle(forWritingAtPath: "/tmp/shove-debug.log")
+                       }() {
+                        handle.seekToEndOfFile()
+                        handle.write(data)
+                        handle.closeFile()
+                    }
+                }
+                if note.object as? String == "windows" {
+                    let titles = NSApp.windows.filter(\.isVisible).map { "\(type(of: $0)) \"\($0.title)\"" }
+                    log("windows: [\(titles.joined(separator: ", "))]\n")
+                    return
+                }
                 let before = FocusedWindow.current()?.frame
                 switch note.object as? String {
                 case "left": shove(.left)
@@ -73,16 +90,7 @@ enum ShortcutHandler {
                 default: return
                 }
                 let after = FocusedWindow.current()?.frame
-                let line = "\(note.object ?? "?"): \(before.map(String.init(describing:)) ?? "nil") -> \(after.map(String.init(describing:)) ?? "nil")\n"
-                if let data = line.data(using: .utf8),
-                   let handle = FileHandle(forWritingAtPath: "/tmp/shove-debug.log") ?? {
-                       FileManager.default.createFile(atPath: "/tmp/shove-debug.log", contents: nil)
-                       return FileHandle(forWritingAtPath: "/tmp/shove-debug.log")
-                   }() {
-                    handle.seekToEndOfFile()
-                    handle.write(data)
-                    handle.closeFile()
-                }
+                log("\(note.object ?? "?"): \(before.map(String.init(describing:)) ?? "nil") -> \(after.map(String.init(describing:)) ?? "nil")\n")
             }
         }
     }

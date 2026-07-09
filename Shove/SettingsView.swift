@@ -1,40 +1,41 @@
 //
-//  ContentView.swift
+//  SettingsView.swift
 //  Shove
 //
 //  Created by Jeremy Kanter on 7/8/26.
 //
 
 import Combine
-import SwiftUI
 import KeyboardShortcuts
+import ServiceManagement
+import SwiftUI
 
-struct ContentView: View {
+struct SettingsView: View {
     @State private var isTrusted = AccessibilityPermission.isGranted
+    @State private var startsAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("reverseWhileHeld") private var reverseWhileHeld = true
     private let trustCheck = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            permissionStatus
-            Divider()
-            VStack(alignment: .leading, spacing: 8) {
+        Form {
+            Section {
+                permissionStatus
+            }
+            Section("Shortcuts") {
                 ForEach(shortcutRows, id: \.name.rawValue) { row in
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(KeyboardShortcuts.getShortcut(for: row.name)?.description ?? "—")
-                            .font(.system(.body, design: .monospaced))
-                            .frame(width: 90, alignment: .leading)
-                        Text(row.label)
-                            .foregroundStyle(.secondary)
-                    }
+                    KeyboardShortcuts.Recorder(row.label, name: row.name)
                 }
             }
-            Divider()
-            Toggle("Pressing the opposite arrow steps backward while the modifier keys stay held", isOn: $reverseWhileHeld)
-                .font(.callout)
+            Section {
+                Toggle("Pressing the opposite arrow steps backward while the modifier keys stay held", isOn: $reverseWhileHeld)
+                Toggle("Start Shove at login", isOn: $startsAtLogin)
+                    .onChange(of: startsAtLogin) { _, enabled in
+                        setLoginItem(enabled)
+                    }
+            }
         }
-        .padding(24)
-        .frame(width: 440)
+        .formStyle(.grouped)
+        .frame(width: 480)
         .onReceive(trustCheck) { _ in
             isTrusted = AccessibilityPermission.isGranted
         }
@@ -44,6 +45,18 @@ struct ContentView: View {
         Direction.allCases.map { ($0.shortcutName, $0.label) }
             + Corner.allCases.map { ($0.shortcutName, $0.label) }
             + [(.shoveCenter, "Center without resizing")]
+    }
+
+    private func setLoginItem(_ enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            startsAtLogin = SMAppService.mainApp.status == .enabled
+        }
     }
 
     @ViewBuilder
@@ -67,5 +80,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    SettingsView()
 }
