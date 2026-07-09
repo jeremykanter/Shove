@@ -72,8 +72,38 @@ struct FocusedWindow {
         withoutEnhancedUserInterface {
             set(axTarget.origin, for: kAXPositionAttribute)
             set(axTarget.size, for: kAXSizeAttribute)
+            // A window may not reach the requested size in one set: some apps
+            // (e.g. Reeder) clamp every resize to a fixed stride, so a single
+            // set from a large size stops well short of both the request and
+            // the window's true minimum — and the size it settles at would
+            // then be mistaken for that minimum. Re-apply for as long as each
+            // set makes progress; apps that clamp in one go exit after a
+            // single extra set, and the bound is only a safety valve.
+            var previous = sizeValue(for: kAXSizeAttribute)
+            for _ in 0..<16 {
+                guard let achieved = previous,
+                      abs(achieved.width - target.width) > 1 || abs(achieved.height - target.height) > 1 else {
+                    break
+                }
+                set(axTarget.size, for: kAXSizeAttribute)
+                guard let retried = sizeValue(for: kAXSizeAttribute),
+                      abs(retried.width - achieved.width) > 1 || abs(retried.height - achieved.height) > 1 else {
+                    break
+                }
+                previous = retried
+            }
         }
     }
+
+    #if DEBUG
+    /// One raw size set with no convergence retries, for probing how an app
+    /// clamps from the debug hook.
+    func setSizeOnce(_ size: CGSize) {
+        withoutEnhancedUserInterface {
+            set(size, for: kAXSizeAttribute)
+        }
+    }
+    #endif
 
     /// Moves the window so it occupies `frame`'s origin without resizing.
     /// `frame` must carry the window's actual size — the coordinate flip

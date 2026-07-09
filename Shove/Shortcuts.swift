@@ -79,6 +79,17 @@ enum ShortcutHandler {
                     log("windows: [\(titles.joined(separator: ", "))]\n")
                     return
                 }
+                if let object = note.object as? String, object.hasPrefix("shrink:"),
+                   let width = Double(object.dropFirst("shrink:".count)) {
+                    let window = FocusedWindow.current()
+                    let before = window?.frame
+                    if let window, let frame = window.frame {
+                        window.setSizeOnce(CGSize(width: width, height: frame.height))
+                    }
+                    let after = window?.frame
+                    log("\(object): \(before.map(String.init(describing:)) ?? "nil") -> \(after.map(String.init(describing:)) ?? "nil")\n")
+                    return
+                }
                 let before = FocusedWindow.current()?.frame
                 switch note.object as? String {
                 case "left": shove(.left)
