@@ -11,6 +11,7 @@ import KeyboardShortcuts
 
 struct ContentView: View {
     @State private var isTrusted = AccessibilityPermission.isGranted
+    @AppStorage("reverseWhileHeld") private var reverseWhileHeld = true
     private let trustCheck = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -28,6 +29,9 @@ struct ContentView: View {
                     }
                 }
             }
+            Divider()
+            Toggle("Pressing the opposite arrow steps backward while the modifier keys stay held", isOn: $reverseWhileHeld)
+                .font(.callout)
         }
         .padding(24)
         .frame(width: 440)

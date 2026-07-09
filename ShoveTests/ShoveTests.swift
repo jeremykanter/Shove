@@ -78,6 +78,82 @@ struct LayoutEngineTests {
         #expect(heights == [225, 900, 675, 450])
     }
 
+    private func reverse(_ direction: Direction, fromStep step: Int, on frame: CGRect, minSize: CGSize? = nil) -> (step: Int, frame: CGRect) {
+        LayoutEngine.frame(beforeStep: step, direction: direction, current: frame, screen: screen, minSize: minSize)
+    }
+
+    @Test func oppositesRoundTrip() {
+        #expect(Direction.left.opposite == .right)
+        #expect(Direction.up.opposite == .down)
+        for direction in Direction.allCases {
+            #expect(direction.opposite.opposite == direction)
+        }
+    }
+
+    @Test func backwardStepWrapsFromStepZero() {
+        // Left's cycle wraps: backward from the first step (6/12) lands on
+        // the last (7/12).
+        let leftHalf = CGRect(x: 0, y: 0, width: 600, height: 900)
+        let (step, frame) = reverse(.left, fromStep: 0, on: leftHalf)
+        #expect(step == 11)
+        #expect(frame == CGRect(x: 0, y: 0, width: 700, height: 900))
+    }
+
+    @Test func backwardWalkRetracesForwardWalk() {
+        // Forward three presses (600 → 500 → 400), then backward twice
+        // returns through 500 to 600.
+        var frame = press(.left, on: floating)
+        frame = press(.left, on: frame)
+        frame = press(.left, on: frame)
+        #expect(frame.width == 400)
+        var step: Int
+        (step, frame) = reverse(.left, fromStep: 2, on: frame)
+        #expect(step == 1)
+        #expect(frame.width == 500)
+        (step, frame) = reverse(.left, fromStep: step, on: frame)
+        #expect(step == 0)
+        #expect(frame.width == 600)
+    }
+
+    @Test func backwardStepWorksForVerticalPair() {
+        // Up at 5/6 width (step 1) back to full screen (step 0).
+        let fiveSixths = CGRect(x: 100, y: 0, width: 1000, height: 900)
+        let (upStep, upFrame) = reverse(.up, fromStep: 1, on: fiveSixths)
+        #expect(upStep == 0)
+        #expect(upFrame == screen)
+
+        // Down at half height (step 0) wraps back to 3/4 height (step 3),
+        // keeping the window's width and x.
+        let bottomHalf = CGRect(x: 123, y: 0, width: 500, height: 450)
+        let (downStep, downFrame) = reverse(.down, fromStep: 0, on: bottomHalf)
+        #expect(downStep == 3)
+        #expect(downFrame == CGRect(x: 123, y: 0, width: 500, height: 675))
+    }
+
+    @Test func clampedBackwardStepSkipsUnreachableSteps() {
+        // A 450 pt minimum window clamped on full screen (step 6): backward
+        // skips 1/12 through 1/3 and lands on 5/12.
+        let (step, frame) = reverse(
+            .left,
+            fromStep: 6,
+            on: CGRect(x: 0, y: 0, width: 1200, height: 900),
+            minSize: CGSize(width: 450, height: 900)
+        )
+        #expect(step == 1)
+        #expect(frame == CGRect(x: 0, y: 0, width: 500, height: 900))
+    }
+
+    @Test func clampedBackwardStepWithHugeMinimumFallsBackToLargest() {
+        let (step, frame) = reverse(
+            .left,
+            fromStep: 3,
+            on: CGRect(x: 0, y: 0, width: 1200, height: 900),
+            minSize: CGSize(width: 1300, height: 900)
+        )
+        #expect(step == 6)
+        #expect(frame == screen)
+    }
+
     @Test func matchingToleratesSmallDeviations() {
         // A window a few points off the left-half step (an app that snaps its
         // size) still advances to the next step instead of restarting.

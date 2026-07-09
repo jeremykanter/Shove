@@ -69,6 +69,7 @@ enum ShortcutHandler {
                 case "up": shove(.up)
                 case "down": shove(.down)
                 case "center": center()
+                case "release": heldChain = nil
                 default: return
                 }
                 let after = FocusedWindow.current()?.frame
@@ -101,9 +102,31 @@ enum ShortcutHandler {
         KeyboardShortcuts.onKeyDown(for: .shoveCenter) {
             center()
         }
+        // The reverse gesture lives and dies with the modifier keys, so watch
+        // for releases. The global monitor covers presses while another app is
+        // frontmost (it needs the Accessibility trust the app already
+        // requires); the local one covers Shove's own window.
+        NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { event in
+            let flags = event.modifierFlags
+            MainActor.assumeIsolated { modifiersChanged(to: flags) }
+        }
+        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+            let flags = event.modifierFlags
+            MainActor.assumeIsolated { modifiersChanged(to: flags) }
+            return event
+        }
+    }
+
+    private static func modifiersChanged(to flags: NSEvent.ModifierFlags) {
+        guard let chain = heldChain,
+              !flags.intersection(.deviceIndependentFlagsMask).isSuperset(of: chain.modifiers) else {
+            return
+        }
+        heldChain = nil
     }
 
     static func center() {
+        heldChain = nil
         guard AccessibilityPermission.isGranted,
               let window = FocusedWindow.current(),
               let current = window.frame,
@@ -115,6 +138,7 @@ enum ShortcutHandler {
     }
 
     static func shove(_ corner: Corner) {
+        heldChain = nil
         guard AccessibilityPermission.isGranted,
               let window = FocusedWindow.current(),
               let current = window.frame,
@@ -133,7 +157,19 @@ enum ShortcutHandler {
     /// or its frame.
     private static var pendingClamp: (window: FocusedWindow, direction: Direction, step: Int, frame: CGRect, minSize: CGSize)?
 
-    static func shove(_ direction: Direction) {
+    /// Alive while the user keeps the triggering shortcut's modifiers held
+    /// after a directional shove: the opposite arrow then steps backward
+    /// through this cycle instead of starting its own. Cleared by the
+    /// flagsChanged monitors the moment any of the modifiers is released,
+    /// and invalidated by anything that changes the window or its frame.
+    private static var heldChain: (window: FocusedWindow, direction: Direction, step: Int, frame: CGRect, modifiers: NSEvent.ModifierFlags)?
+
+    private static var reverseWhileHeld: Bool {
+        UserDefaults.standard.object(forKey: "reverseWhileHeld") == nil
+            || UserDefaults.standard.bool(forKey: "reverseWhileHeld")
+    }
+
+    static func shove(_ pressed: Direction) {
         guard AccessibilityPermission.isGranted,
               let window = FocusedWindow.current(),
               let current = window.frame,
@@ -143,12 +179,33 @@ enum ShortcutHandler {
         }
         let visible = screen.visibleFrame
 
+        // A clamp memo only applies while nothing about the window changed.
+        let clamp = pendingClamp.flatMap { memo in
+            window.isSame(as: memo.window) && LayoutEngine.roughlyEqual(current, memo.frame) ? memo : nil
+        }
+        pendingClamp = nil
+
+        // The cycle being walked: the opposite direction's, stepped backward,
+        // when the modifiers never left the keyboard; otherwise the pressed
+        // direction's, forward.
+        let direction: Direction
         let step: Int
         let target: CGRect
-        if let clamp = pendingClamp,
-           clamp.direction == direction,
-           window.isSame(as: clamp.window),
-           LayoutEngine.roughlyEqual(current, clamp.frame) {
+        if reverseWhileHeld,
+           let chain = heldChain,
+           chain.direction == pressed.opposite,
+           window.isSame(as: chain.window),
+           LayoutEngine.roughlyEqual(current, chain.frame) {
+            direction = chain.direction
+            (step, target) = LayoutEngine.frame(
+                beforeStep: chain.step,
+                direction: direction,
+                current: current,
+                screen: visible,
+                minSize: clamp?.direction == direction ? clamp?.minSize : nil
+            )
+        } else if let clamp, clamp.direction == pressed {
+            direction = pressed
             (step, target) = LayoutEngine.frame(
                 afterClampedStep: clamp.step,
                 direction: direction,
@@ -157,9 +214,10 @@ enum ShortcutHandler {
                 minSize: clamp.minSize
             )
         } else {
+            direction = pressed
             (step, target) = LayoutEngine.nextFrame(direction: direction, current: current, screen: visible)
         }
-        pendingClamp = nil
+        heldChain = nil
 
         window.apply(target)
         guard let achieved = window.frame else { return }
@@ -168,19 +226,24 @@ enum ShortcutHandler {
         // (e.g. its minimum); the position was computed for the requested
         // size, so re-pin the anchored edge to match reality.
         let tolerance = LayoutEngine.tolerance
-        guard abs(achieved.width - target.width) > tolerance || abs(achieved.height - target.height) > tolerance else {
-            return
-        }
         var settled = achieved
-        let pinned = pin(achieved, direction: direction, screen: visible)
-        if pinned.origin != achieved.origin {
-            window.move(to: pinned)
-            settled = window.frame ?? pinned
+        if abs(achieved.width - target.width) > tolerance || abs(achieved.height - target.height) > tolerance {
+            let pinned = pin(achieved, direction: direction, screen: visible)
+            if pinned.origin != achieved.origin {
+                window.move(to: pinned)
+                settled = window.frame ?? pinned
+            }
+            // Only a window that came back *larger* than asked is min-clamped;
+            // remember it so the next press can continue the cycle.
+            if achieved.width > target.width + tolerance || achieved.height > target.height + tolerance {
+                pendingClamp = (window, direction, step, settled, achieved.size)
+            }
         }
-        // Only a window that came back *larger* than asked is min-clamped;
-        // remember it so the next press can continue the cycle.
-        if achieved.width > target.width + tolerance || achieved.height > target.height + tolerance {
-            pendingClamp = (window, direction, step, settled, achieved.size)
+        // Arm the reverse gesture for the next press. A shortcut without
+        // modifiers has nothing to hold, so it never chains.
+        if let modifiers = KeyboardShortcuts.getShortcut(for: pressed.shortcutName)?.modifiers,
+           !modifiers.isEmpty {
+            heldChain = (window, direction, step, settled, modifiers)
         }
     }
 

@@ -8,6 +8,17 @@ import CoreGraphics
 enum Direction: CaseIterable {
     case left, right, up, down
 
+    /// While the modifiers stay held, this key steps backward through the
+    /// other's cycle instead of starting its own.
+    var opposite: Direction {
+        switch self {
+        case .left: .right
+        case .right: .left
+        case .up: .down
+        case .down: .up
+        }
+    }
+
     /// The fraction of the screen each cycle step occupies — width for
     /// left/right/up, height for down. Index 0 is the first-press step.
     var fractions: [CGFloat] {
@@ -58,6 +69,26 @@ enum LayoutEngine {
             let candidate = frame(step: next, direction: direction, screen: screen, current: current)
             if fits(candidate, minSize: minSize, direction: direction) {
                 return (next, candidate)
+            }
+        }
+        // The minimum exceeds even the largest step; hand back the largest.
+        let largest = direction.fractions.firstIndex(of: direction.fractions.max()!)!
+        return (largest, frame(step: largest, direction: direction, screen: screen, current: current))
+    }
+
+    /// The step before `step` in the direction's cycle (wrapping), for the
+    /// held-modifiers reverse gesture. With a `minSize` (the window sits
+    /// clamped at its minimum on `step`), keeps stepping backward past the
+    /// steps the window can't reach, falling back to the largest step when
+    /// none fit.
+    static func frame(beforeStep step: Int, direction: Direction, current: CGRect, screen: CGRect, minSize: CGSize? = nil) -> (step: Int, frame: CGRect) {
+        let stepCount = direction.fractions.count
+        for offset in 1...stepCount {
+            let previous = (step - offset + stepCount) % stepCount
+            let candidate = frame(step: previous, direction: direction, screen: screen, current: current)
+            guard let minSize else { return (previous, candidate) }
+            if fits(candidate, minSize: minSize, direction: direction) {
+                return (previous, candidate)
             }
         }
         // The minimum exceeds even the largest step; hand back the largest.
