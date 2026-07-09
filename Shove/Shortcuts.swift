@@ -13,6 +13,7 @@ extension KeyboardShortcuts.Name {
     static let shoveDown = Self("shoveDown", default: .init(.downArrow, modifiers: [.command, .shift, .option, .control]))
     static let shoveTopLeft = Self("shoveTopLeft", default: .init(.leftBracket, modifiers: [.command, .shift, .option, .control]))
     static let shoveTopRight = Self("shoveTopRight", default: .init(.rightBracket, modifiers: [.command, .shift, .option, .control]))
+    static let shoveCenter = Self("shoveCenter", default: .init(.quote, modifiers: [.command, .shift, .option, .control]))
 }
 
 extension Corner {
@@ -61,16 +62,15 @@ enum ShortcutHandler {
             forName: Notification.Name("ShoveDebugPress"), object: nil, queue: .main
         ) { note in
             MainActor.assumeIsolated {
-                let direction: Direction? = switch note.object as? String {
-                case "left": .left
-                case "right": .right
-                case "up": .up
-                case "down": .down
-                default: nil
-                }
-                guard let direction else { return }
                 let before = FocusedWindow.current()?.frame
-                shove(direction)
+                switch note.object as? String {
+                case "left": shove(.left)
+                case "right": shove(.right)
+                case "up": shove(.up)
+                case "down": shove(.down)
+                case "center": center()
+                default: return
+                }
                 let after = FocusedWindow.current()?.frame
                 let line = "\(note.object ?? "?"): \(before.map(String.init(describing:)) ?? "nil") -> \(after.map(String.init(describing:)) ?? "nil")\n"
                 if let data = line.data(using: .utf8),
@@ -98,6 +98,20 @@ enum ShortcutHandler {
                 shove(corner)
             }
         }
+        KeyboardShortcuts.onKeyDown(for: .shoveCenter) {
+            center()
+        }
+    }
+
+    static func center() {
+        guard AccessibilityPermission.isGranted,
+              let window = FocusedWindow.current(),
+              let current = window.frame,
+              let screen = window.screen else {
+            NSSound.beep()
+            return
+        }
+        window.move(to: LayoutEngine.centeredFrame(current: current, screen: screen.visibleFrame))
     }
 
     static func shove(_ corner: Corner) {

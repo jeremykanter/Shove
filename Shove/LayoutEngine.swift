@@ -78,6 +78,18 @@ enum LayoutEngine {
             : candidate.width >= minSize.width - tolerance
     }
 
+    /// `current` moved (not resized) to the center of the screen, with the
+    /// slight above-center vertical bias AppKit's `NSWindow.center()` uses:
+    /// a third of the leftover vertical space above the window, two thirds
+    /// below.
+    static func centeredFrame(current: CGRect, screen: CGRect) -> CGRect {
+        var frame = current
+        frame.origin.x = (screen.midX - frame.width / 2).rounded()
+        let slack = max(screen.height - frame.height, 0)
+        frame.origin.y = (screen.minY + slack * 2 / 3).rounded()
+        return frame
+    }
+
     /// `current` moved (not resized) into the given corner of the screen.
     static func frame(corner: Corner, current: CGRect, screen: CGRect) -> CGRect {
         var frame = current

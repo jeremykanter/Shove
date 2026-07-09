@@ -39,6 +39,7 @@ struct ContentView: View {
     private var shortcutRows: [(name: KeyboardShortcuts.Name, label: String)] {
         Direction.allCases.map { ($0.shortcutName, $0.label) }
             + Corner.allCases.map { ($0.shortcutName, $0.label) }
+            + [(.shoveCenter, "Center without resizing")]
     }
 
     @ViewBuilder

@@ -136,6 +136,23 @@ struct LayoutEngineTests {
         #expect(frame == screen)
     }
 
+    @Test func centeringKeepsSizeAndBiasesAboveCenter() {
+        let centered = LayoutEngine.centeredFrame(current: floating, screen: screen)
+        #expect(centered.size == floating.size)
+        #expect(centered.midX == screen.midX)
+        // AppKit-style bias: a third of the free vertical space above the
+        // window, two thirds below. 900 − 300 leaves 600: 200 above, 400 below.
+        #expect(centered == CGRect(x: 350, y: 400, width: 500, height: 300))
+
+        // On an offset screen, and a window taller than the screen pins to
+        // the bottom rather than drifting below it.
+        let offset = CGRect(x: 1512, y: 100, width: 1200, height: 900)
+        let tall = CGRect(x: 0, y: 0, width: 500, height: 1000)
+        let tallCentered = LayoutEngine.centeredFrame(current: tall, screen: offset)
+        #expect(tallCentered.origin.y == offset.minY)
+        #expect(abs(tallCentered.midX - offset.midX) <= 1)
+    }
+
     @Test func cornerMovesKeepSizeAndPinTopCorners() {
         let topLeft = LayoutEngine.frame(corner: .topLeft, current: floating, screen: screen)
         #expect(topLeft == CGRect(x: 0, y: 600, width: 500, height: 300))
