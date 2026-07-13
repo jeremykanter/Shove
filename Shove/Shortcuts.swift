@@ -23,13 +23,6 @@ extension Corner {
         case .topRight: .shoveTopRight
         }
     }
-
-    var label: String {
-        switch self {
-        case .topLeft: "Move to the top-left corner"
-        case .topRight: "Move to the top-right corner"
-        }
-    }
 }
 
 extension Direction {
@@ -39,15 +32,6 @@ extension Direction {
         case .right: .shoveRight
         case .up: .shoveUp
         case .down: .shoveDown
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .left: "Left half, then cycle widths from the left edge"
-        case .right: "Right half, then cycle widths from the right edge"
-        case .up: "Full screen, then cycle centered widths"
-        case .down: "Bottom half, then cycle heights from the bottom edge"
         }
     }
 }

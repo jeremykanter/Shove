@@ -22,9 +22,13 @@ struct SettingsView: View {
                 permissionStatus
             }
             Section("Shortcuts") {
-                ForEach(shortcutRows, id: \.name.rawValue) { row in
-                    KeyboardShortcuts.Recorder(row.label, name: row.name)
-                }
+                KeyboardShortcuts.Recorder("Left half, then cycle widths from the left edge", name: .shoveLeft)
+                KeyboardShortcuts.Recorder("Right half, then cycle widths from the right edge", name: .shoveRight)
+                KeyboardShortcuts.Recorder("Full screen, then cycle centered widths", name: .shoveUp)
+                KeyboardShortcuts.Recorder("Bottom half, then cycle heights from the bottom edge", name: .shoveDown)
+                KeyboardShortcuts.Recorder("Move to the top-left corner", name: .shoveTopLeft)
+                KeyboardShortcuts.Recorder("Move to the top-right corner", name: .shoveTopRight)
+                KeyboardShortcuts.Recorder("Center without resizing", name: .shoveCenter)
             }
             Section {
                 Toggle("Pressing the opposite arrow steps backward while the modifier keys stay held", isOn: $reverseWhileHeld)
@@ -39,12 +43,6 @@ struct SettingsView: View {
         .onReceive(trustCheck) { _ in
             isTrusted = AccessibilityPermission.isGranted
         }
-    }
-
-    private var shortcutRows: [(name: KeyboardShortcuts.Name, label: String)] {
-        Direction.allCases.map { ($0.shortcutName, $0.label) }
-            + Corner.allCases.map { ($0.shortcutName, $0.label) }
-            + [(.shoveCenter, "Center without resizing")]
     }
 
     private func setLoginItem(_ enabled: Bool) {
