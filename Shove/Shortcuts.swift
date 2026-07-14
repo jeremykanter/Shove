@@ -81,6 +81,8 @@ enum ShortcutHandler {
                 case "up": shove(.up)
                 case "down": shove(.down)
                 case "center": center()
+                case "topLeft": shove(.topLeft)
+                case "topRight": shove(.topRight)
                 case "release": heldChain = nil
                 default: return
                 }
@@ -121,6 +123,7 @@ enum ShortcutHandler {
     }
 
     private static func modifiersChanged(to flags: NSEvent.ModifierFlags) {
+        OverlayController.shared.modifiersChanged(to: flags)
         guard let chain = heldChain,
               !flags.intersection(.deviceIndependentFlagsMask).isSuperset(of: chain.modifiers) else {
             return
@@ -138,6 +141,11 @@ enum ShortcutHandler {
             return
         }
         window.move(to: LayoutEngine.centeredFrame(current: current, screen: screen.visibleFrame))
+        OverlayController.shared.show(
+            .indicator(.center),
+            on: screen,
+            heldModifiers: KeyboardShortcuts.getShortcut(for: .shoveCenter)?.modifiers ?? []
+        )
     }
 
     static func shove(_ corner: Corner) {
@@ -150,6 +158,11 @@ enum ShortcutHandler {
             return
         }
         window.move(to: LayoutEngine.frame(corner: corner, current: current, screen: screen.visibleFrame))
+        OverlayController.shared.show(
+            .indicator(Indicator(corner: corner)),
+            on: screen,
+            heldModifiers: KeyboardShortcuts.getShortcut(for: corner.shortcutName)?.modifiers ?? []
+        )
     }
 
     /// Set when the last shove asked for a size the window refused (clamped
@@ -242,6 +255,11 @@ enum ShortcutHandler {
                 pendingClamp = (window, direction, step, settled, achieved.size)
             }
         }
+        OverlayController.shared.show(
+            .grid(GridHighlight.cells(for: settled, in: visible)),
+            on: screen,
+            heldModifiers: KeyboardShortcuts.getShortcut(for: pressed.shortcutName)?.modifiers ?? []
+        )
         // Arm the reverse gesture for the next press. A shortcut without
         // modifiers has nothing to hold, so it never chains.
         if let modifiers = KeyboardShortcuts.getShortcut(for: pressed.shortcutName)?.modifiers,

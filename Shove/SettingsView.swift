@@ -14,25 +14,37 @@ struct SettingsView: View {
     @State private var isTrusted = AccessibilityPermission.isGranted
     @State private var startsAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("reverseWhileHeld") private var reverseWhileHeld = true
+    @AppStorage("showOverlay") private var showOverlay = true
     private let trustCheck = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Form {
             Section {
-                permissionStatus
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Shove")
+                        .font(.title.bold())
+                    Text("Fling your windows around")
+                        .foregroundStyle(.secondary)
+                }
+                if !isTrusted {
+                    permissionStatus
+                }
             }
-            Section("Shortcuts") {
-                KeyboardShortcuts.Recorder("Left half, then cycle widths from the left edge", name: .shoveLeft)
-                KeyboardShortcuts.Recorder("Right half, then cycle widths from the right edge", name: .shoveRight)
-                KeyboardShortcuts.Recorder("Full screen, then cycle centered widths", name: .shoveUp)
-                KeyboardShortcuts.Recorder("Bottom half, then cycle heights from the bottom edge", name: .shoveDown)
-                KeyboardShortcuts.Recorder("Move to the top-left corner", name: .shoveTopLeft)
-                KeyboardShortcuts.Recorder("Move to the top-right corner", name: .shoveTopRight)
-                KeyboardShortcuts.Recorder("Center without resizing", name: .shoveCenter)
+            Section("Shove") {
+                KeyboardShortcuts.Recorder("Shove left", name: .shoveLeft)
+                KeyboardShortcuts.Recorder("Shove right", name: .shoveRight)
+                KeyboardShortcuts.Recorder("Shove middle", name: .shoveUp)
+                KeyboardShortcuts.Recorder("Shove down", name: .shoveDown)
             }
-            Section {
-                Toggle("Pressing the opposite arrow steps backward while the modifier keys stay held", isOn: $reverseWhileHeld)
-                Toggle("Start Shove at login", isOn: $startsAtLogin)
+            Section("Move") {
+                KeyboardShortcuts.Recorder("Move to top-left", name: .shoveTopLeft)
+                KeyboardShortcuts.Recorder("Move to top-right", name: .shoveTopRight)
+                KeyboardShortcuts.Recorder("Move to center", name: .shoveCenter)
+            }
+            Section("Settings") {
+                Toggle("Shove in the opposite direction while continuing to hold the modifier keys to step backwards through the cycle", isOn: $reverseWhileHeld)
+                Toggle("Show overlay while moving windows", isOn: $showOverlay)
+                Toggle("Start at login", isOn: $startsAtLogin)
                     .onChange(of: startsAtLogin) { _, enabled in
                         setLoginItem(enabled)
                     }
@@ -59,19 +71,12 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var permissionStatus: some View {
-        if isTrusted {
-            Label("Accessibility access granted", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        } else {
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Accessibility access required", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                Text("Shove needs Accessibility access to move and resize windows of other apps.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Button("Open System Settings…") {
-                    AccessibilityPermission.openSystemSettings()
-                }
+        HStack(alignment: .center, spacing: 8) {
+            Label("Accessibility access required", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+            Spacer()
+            Button("Open System Settings…") {
+                AccessibilityPermission.openSystemSettings()
             }
         }
     }
