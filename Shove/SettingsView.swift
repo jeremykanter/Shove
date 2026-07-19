@@ -51,7 +51,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
         .onReceive(trustCheck) { _ in
             isTrusted = AccessibilityPermission.isGranted
         }
