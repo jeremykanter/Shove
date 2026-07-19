@@ -36,7 +36,16 @@ struct FocusedWindow {
         guard result == .success, let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() else {
             return nil
         }
-        return FocusedWindow(element: focused as! AXUIElement, appElement: appElement)
+        let element = focused as! AXUIElement
+        // With the desktop focused, Finder reports the desktop itself as its
+        // "focused window" — an AXScrollArea covering the screen, which a
+        // shove would silently fail to move. Only accept real windows.
+        var role: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role) == .success,
+              role as? String == kAXWindowRole else {
+            return nil
+        }
+        return FocusedWindow(element: element, appElement: appElement)
     }
 
     func isSame(as other: FocusedWindow) -> Bool {
