@@ -9,4 +9,4 @@ Shove is a keyboard-based window manager for macOS. The way Shove works is simpl
 
 Shove is inspired by the window management solutions offered by [Moom](https://manytricks.com/moom/) and [Raycast](https://www.raycast.com). If Shove isn't for you, I would encourage you to check out those great apps.
 
-Shove is free and open source. If you find it useful, encounter bugs, or have ideas for how I can make it better, I’d love to hear from you!
+Shove is free and open source. If you find it useful, encounter bugs, or have ideas thoughts about how I can make it better, I’d love to hear from you!
