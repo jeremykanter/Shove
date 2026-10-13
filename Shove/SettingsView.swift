@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var startsAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("reverseWhileHeld") private var reverseWhileHeld = true
     @AppStorage("showOverlay") private var showOverlay = true
+    @ObservedObject private var updater = UpdaterModel.shared
     private let trustCheck = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -33,6 +34,10 @@ struct SettingsView: View {
                         .onChange(of: startsAtLogin) { _, enabled in
                             setLoginItem(enabled)
                         }
+                    Toggle("Automatically check for updates", isOn: Binding(
+                        get: { updater.automaticallyChecksForUpdates },
+                        set: { updater.setAutomaticallyChecksForUpdates($0) }
+                    ))
                 }
                 if !isTrusted {
                     permissionStatus

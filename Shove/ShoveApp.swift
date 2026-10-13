@@ -26,6 +26,11 @@ struct ShoveApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesButton()
+            }
+        }
     }
 }
 
@@ -47,6 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Never force the app headless mid-test — a UI test launches this app
         // and expects its window to stay put.
         guard !Self.isRunningUnderTests else { return }
+
+        UpdaterModel.shared.start()
 
         // Detect a login-item (background) launch and start headless. A manual
         // Finder/Spotlight launch activates the app almost immediately; a login
