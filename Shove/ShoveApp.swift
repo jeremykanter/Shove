@@ -22,7 +22,7 @@ struct ShoveApp: App {
     var body: some Scene {
         WindowGroup {
             SettingsView()
-                .frame(minWidth: 400, idealWidth: 480, maxWidth: .infinity, minHeight: 400, maxHeight: .infinity)
+                .frame(minWidth: 720, idealWidth: 720, maxWidth: .infinity, minHeight: 408, maxHeight: .infinity)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)

@@ -1,6 +1,9 @@
 {
   "fill" : {
-    "automatic-gradient" : "srgb:1.00000,1.00000,1.00000,1.00000"
+    "linear-gradient" : [
+      "display-p3:0.65000,0.65000,0.65000,1.00000",
+      "srgb:0.50000,0.50000,0.50000,1.00000"
+    ]
   },
   "groups" : [
     {
@@ -8,39 +11,81 @@
         {
           "fill-specializations" : [
             {
+              "appearance" : "tinted",
+              "value" : "system-dark"
+            }
+          ],
+          "glass" : false,
+          "image-name" : "1 Red.svg",
+          "name" : "1 Red",
+          "opacity-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : 0.5
+            }
+          ]
+        },
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : "system-dark"
+            }
+          ],
+          "glass" : false,
+          "image-name" : "2 Yellow.svg",
+          "name" : "2 Yellow",
+          "opacity-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : 0.5
+            }
+          ]
+        },
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : "system-dark"
+            }
+          ],
+          "glass" : false,
+          "image-name" : "3 Green.svg",
+          "name" : "3 Green",
+          "opacity-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : 0.5
+            }
+          ]
+        },
+        {
+          "fill-specializations" : [
+            {
+              "value" : "system-light"
+            },
+            {
               "appearance" : "dark",
-              "value" : {
-                "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            },
-            {
-              "appearance" : "tinted",
-              "value" : {
-                "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
+              "value" : "system-light"
             }
           ],
-          "glass-specializations" : [
-            {
-              "value" : false
-            },
-            {
-              "appearance" : "tinted",
-              "value" : true
-            }
-          ],
-          "image-name" : "Shove Flat.svg",
-          "name" : "Shove Flat"
+          "image-name" : "4 Window.svg",
+          "name" : "4 Window"
+        },
+        {
+          "fill" : "system-light",
+          "image-name" : "5 Ghost.svg",
+          "name" : "5 Ghost",
+          "opacity" : 0.67
         }
       ],
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
       },
-      "specular" : true,
       "translucency" : {
         "enabled" : true,
-        "value" : 0.5
+        "value" : 0.3
       }
     }
   ],

@@ -18,41 +18,46 @@ struct SettingsView: View {
     private let trustCheck = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        Form {
-            Section {
+        HStack(alignment: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: 32) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Shove")
                         .font(.title.bold())
                     Text("Fling your windows around")
                         .foregroundStyle(.secondary)
                 }
+                VStack(alignment: .leading, spacing: 16) {
+                    Toggle("Shove in the opposite direction while continuing to hold the modifier keys to step backwards through the cycle", isOn: $reverseWhileHeld)
+                    Toggle("Show overlay while moving windows", isOn: $showOverlay)
+                    Toggle("Start at login", isOn: $startsAtLogin)
+                        .onChange(of: startsAtLogin) { _, enabled in
+                            setLoginItem(enabled)
+                        }
+                }
                 if !isTrusted {
                     permissionStatus
                 }
             }
-            Section("Shove") {
-                KeyboardShortcuts.Recorder("Shove left", name: .shoveLeft)
-                KeyboardShortcuts.Recorder("Shove right", name: .shoveRight)
-                KeyboardShortcuts.Recorder("Shove middle", name: .shoveUp)
-                KeyboardShortcuts.Recorder("Shove down", name: .shoveDown)
+            .frame(width: 280)
+            .padding(24)
+            Divider()
+            Form {
+                Section("Shove") {
+                    KeyboardShortcuts.Recorder("Shove left", name: .shoveLeft)
+                    KeyboardShortcuts.Recorder("Shove right", name: .shoveRight)
+                    KeyboardShortcuts.Recorder("Shove middle", name: .shoveUp)
+                    KeyboardShortcuts.Recorder("Shove down", name: .shoveDown)
+                }
+                Section("Move") {
+                    KeyboardShortcuts.Recorder("Move to top-left", name: .shoveTopLeft)
+                    KeyboardShortcuts.Recorder("Move to top-right", name: .shoveTopRight)
+                    KeyboardShortcuts.Recorder("Move to center", name: .shoveCenter)
+                }
             }
-            Section("Move") {
-                KeyboardShortcuts.Recorder("Move to top-left", name: .shoveTopLeft)
-                KeyboardShortcuts.Recorder("Move to top-right", name: .shoveTopRight)
-                KeyboardShortcuts.Recorder("Move to center", name: .shoveCenter)
+            .formStyle(.grouped)
+            .onReceive(trustCheck) { _ in
+                isTrusted = AccessibilityPermission.isGranted
             }
-            Section("Settings") {
-                Toggle("Shove in the opposite direction while continuing to hold the modifier keys to step backwards through the cycle", isOn: $reverseWhileHeld)
-                Toggle("Show overlay while moving windows", isOn: $showOverlay)
-                Toggle("Start at login", isOn: $startsAtLogin)
-                    .onChange(of: startsAtLogin) { _, enabled in
-                        setLoginItem(enabled)
-                    }
-            }
-        }
-        .formStyle(.grouped)
-        .onReceive(trustCheck) { _ in
-            isTrusted = AccessibilityPermission.isGranted
         }
     }
 
@@ -70,13 +75,20 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var permissionStatus: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Label("Accessibility access required", systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
-            Spacer()
+        VStack(alignment: .leading, spacing: 12) {
+            if #available(macOS 27, *) {
+                Text("\(Image(systemName: "exclamationmark.triangle")) Shove needs Device Control and Data Access permissions to move windows")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("\(Image(systemName: "exclamationmark.triangle")) Shove needs Device Control and Data Access permissions to move windows")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
             Button("Open System Settings…") {
                 AccessibilityPermission.openSystemSettings()
             }
+            .controlSize(.small)
         }
     }
 }
