@@ -2,5 +2,13 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>Shove</title>
+        <item>
+            <title>1.1</title>
+            <pubDate>Mon, 12 Oct 2026 23:35:33 -0400</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/jeremykanter/Shove/releases/download/1.1/Shove-1.1.zip" length="2883150" type="application/octet-stream" sparkle:edSignature="U66CaLUNGQd2ZTVpPgjAJPaOGp4leAFrwMXh1EPPXfFTSEzeYzJcOQweJRE8YjV4DgDU7/nQJR9YX08NdEQqAA=="/>
+        </item>
     </channel>
 </rss>
